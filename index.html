@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>FarmConnect Africa</title>
+<meta name="theme-color" content="#1F4D2C" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="manifest" href="manifest.json" />
+
+<script>
+  window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDqUFEJKoAjC2-2YKEpYNezhN1m8x-hKuo",
+    authDomain: "farmconnect-africa-fc147.firebaseapp.com",
+    projectId: "farmconnect-africa-fc147",
+    storageBucket: "farmconnect-africa-fc147.firebasestorage.app",
+    messagingSenderId: "499528873132",
+    appId: "1:499528873132:web:0444674f4c6bee09d19b09",
+  };
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Inter', sans-serif; background: #EEEAD9; }
+  .ff-display { font-family: 'Fraunces', serif; }
+  input, button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+const C = {
+  green: "#1F4D2C", greenPale: "#DCE8D6", gold: "#D98E2B", goldPale: "#F6E3C2",
+  soil: "#6B4226", sky: "#3E7C8C", skyPale: "#D9EBEE", bg: "#F3F1E7",
+  card: "#FFFFFF", text: "#1C2318", textMuted: "#66705F", border: "#E1DCC8",
+};
+
+let db = null;
+let firebaseReady = false;
+try {
+  if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey !== "PASTE_YOUR_API_KEY_HERE") {
+    firebase.initializeApp(window.FIREBASE_CONFIG);
+    db = firebase.firestore();
+    firebaseReady = true;
+  }
+} catch (e) {
+  console.error("Firebase not configured yet:", e);
+}
+
+const agronomist = {
+  name: "Mr. M Gandiya,
+  title: "Lead Agronomist, FarmConnect Africa",
+  phone: "+263 785056260,
+  email: "agronomist@farmconnectafrica.co.zw",
+};
+
+const consultants = [
+  { name: "Dr. T. Moyo", specialty: "Soil & Fertility", rate: "$15 / session" },
+  { name: "S. Chikwanha", specialty: "Livestock & Poultry", rate: "$10 / session" },
+  { name: "P. Ndlovu", specialty: "Irrigation Systems", rate: "$18 / session" },
+];
+
+const cropCalendar = {
+  Maize: [
+    { stage: "Land prep", window: "Sep – Oct" },
+    { stage: "Planting", window: "Nov – Dec" },
+    { stage: "Weeding & top dress", window: "Jan" },
+    { stage: "Harvest", window: "Apr – May" },
+  ],
+  Tomatoes: [
+    { stage: "Nursery", window: "Jul – Aug" },
+    { stage: "Transplant", window: "Sep" },
+    { stage: "Flowering & feeding", window: "Oct – Nov" },
+    { stage: "Harvest", window: "Dec – Jan" },
+  ],
+};
+
+const FAQ = [
+  { keys: ["tomato"], a: "Tomatoes do best with well-drained soil and consistent watering. Watch for blight in wet weather — remove affected leaves early and ask your agronomist about a suitable fungicide." },
+  { keys: ["maize", "corn"], a: "Maize is usually planted Nov–Dec in Zimbabwe with the first rains. Top-dress with fertilizer about 4–6 weeks after planting, once the plant has 6–8 leaves." },
+  { keys: ["pest", "insect", "worm"], a: "For pest issues, identify the pest first if you can (photo helps). Rotate crops and remove affected plants promptly. For chemical treatment amounts, please contact our agronomist directly — exact dosing depends on the product and pest." },
+  { keys: ["price", "market"], a: "Check the Marketplace tab for current listings and prices near you. Prices vary by season and region, so compare a few recent listings before you sell." },
+  { keys: ["water", "irrigation"], a: "Water early morning or late afternoon to reduce evaporation loss. Drip irrigation saves the most water if you're able to invest in it." },
+  { keys: ["soil", "fertilizer", "fertiliser"], a: "A simple soil test tells you what your soil is missing before you buy fertilizer — this saves money and improves yield. Our agronomist can help interpret results." },
+];
+
+function askFAQ(q) {
+  const lower = q.toLowerCase();
+  const hit = FAQ.find(f => f.keys.some(k => lower.includes(k)));
+  return hit ? hit.a : "I don't have a specific answer for that yet — please contact our agronomist directly using the button below, and we'll keep improving this bot.";
+}
+
+function TopBar({ title }) {
+  return (
+    <div style={{ background: C.green, color: "#fff", padding: "16px 18px 13px", display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 20 }}>🌱</span>
+      <span className="ff-display" style={{ fontSize: 18, fontWeight: 600 }}>{title}</span>
+    </div>
+  );
+}
+
+function NavBar({ screen, setScreen }) {
+  const items = [
+    { key: "home", label: "Home", icon: "🏠" },
+    { key: "market", label: "Market", icon: "🧺" },
+    { key: "bot", label: "Ask", icon: "💬" },
+    { key: "book", label: "Book", icon: "📅" },
+    { key: "profile", label: "Profile", icon: "👤" },
+  ];
+  return (
+    <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, background: C.card, paddingBottom: 8, paddingTop: 8 }}>
+      {items.map(({ key, label, icon }) => {
+        const active = screen === key;
+        return (
+          <button key={key} onClick={() => setScreen(key)} style={{
+            flex: 1, background: "none", border: "none", cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 2
+          }}>
+            <span style={{ fontSize: 17, opacity: active ? 1 : 0.5 }}>{icon}</span>
+            <span style={{ fontSize: 10.5, color: active ? C.green : C.textMuted, fontWeight: active ? 700 : 500 }}>{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function HomeScreen({ setScreen }) {
+  return (
+    <div style={{ overflowY: "auto", flex: 1, padding: "18px 18px 24px" }}>
+      <div className="ff-display" style={{ fontSize: 21, color: C.text, fontWeight: 600 }}>Welcome back</div>
+      <div style={{ color: C.textMuted, fontSize: 13.5, marginTop: 4 }}>Here's what's happening today.</div>
+      <div style={{ marginTop: 16, background: C.sky, borderRadius: 16, padding: 16, color: "#fff" }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Light rain expected this week</div>
+        <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>Good conditions for planting</div>
+      </div>
+      <div className="ff-display" style={{ fontSize: 15, fontWeight: 600, color: C.text, marginTop: 22, marginBottom: 10 }}>Quick actions</div>
+      {[
+        { label: "List produce for sale", screen: "market" },
+        { label: "Ask a farming question", screen: "bot" },
+        { label: "Book a consultant", screen: "book" },
+      ].map(a => (
+        <button key={a.label} onClick={() => setScreen(a.screen)} style={{
+          width: "100%", background: C.card, border: `1px solid ${C.border}`, borderRadius: 14,
+          padding: "13px 14px", display: "flex", alignItems: "center", marginBottom: 9, cursor: "pointer", textAlign: "left"
+        }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: C.text, flex: 1 }}>{a.label}</span>
+          <span style={{ color: C.textMuted }}>›</span>
+        </button>
+      ))}
+      {!firebaseReady && (
+        <div style={{ marginTop: 20, background: C.goldPale, borderRadius: 12, padding: 12, fontSize: 11.5, color: C.soil }}>
+          ⚠️ Demo mode: connect Firebase (see setup guide) so listings save for real.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarketScreen() {
+  const [listings, setListings] = useState([]);
+  const [query, setQuery] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ crop: "", qty: "", price: "", location: "", farmer: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!firebaseReady) {
+      setListings([
+        { id: "demo1", crop: "Tomatoes", farmer: "Tendai Moyo", location: "Mutare", qty: "200 kg", price: "$0.80/kg" },
+        { id: "demo2", crop: "Maize", farmer: "Chipo Ncube", location: "Gweru", qty: "1.5 tonnes", price: "$320/tonne" },
+      ]);
+      return;
+    }
+    const unsub = db.collection("listings").orderBy("createdAt", "desc").limit(50)
+      .onSnapshot(snap => {
+        setListings(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, err => console.error(err));
+    return () => unsub();
+  }, []);
+
+  const filtered = listings.filter(l =>
+    (l.crop || "").toLowerCase().includes(query.toLowerCase()) ||
+    (l.location || "").toLowerCase().includes(query.toLowerCase())
+  );
+
+  async function addListing() {
+    if (!form.crop || !form.qty || !form.price) return;
+    setSaving(true);
+    try {
+      if (firebaseReady) {
+        await db.collection("listings").add({
+          ...form,
+          farmer: form.farmer || "Anonymous farmer",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        setListings([{ id: "local" + Date.now(), ...form, farmer: form.farmer || "You" }, ...listings]);
+      }
+      setForm({ crop: "", qty: "", price: "", location: "", farmer: "" });
+      setShowForm(false);
+    } catch (e) {
+      alert("Couldn't save listing: " + e.message);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", position: "relative" }}>
+      <div style={{ padding: "14px 18px 10px" }}>
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search crop or location"
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 13 }} />
+      </div>
+      <div style={{ overflowY: "auto", flex: 1, padding: "0 18px 90px" }}>
+        {filtered.map(l => (
+          <div key={l.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 13, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div className="ff-display" style={{ fontSize: 15.5, fontWeight: 600, color: C.text }}>{l.crop}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: C.green }}>{l.price}</div>
+            </div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3 }}>{l.farmer} · {l.qty}</div>
+            <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 4 }}>📍 {l.location}</div>
+          </div>
+        ))}
+        {filtered.length === 0 && <div style={{ textAlign: "center", color: C.textMuted, fontSize: 13, marginTop: 30 }}>No listings yet.</div>}
+      </div>
+      <button onClick={() => setShowForm(true)} style={{
+        position: "absolute", right: 18, bottom: 20, background: C.gold, color: "#fff", border: "none",
+        borderRadius: 30, padding: "12px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer",
+        boxShadow: "0 8px 18px rgba(217,142,43,0.4)"
+      }}>+ List produce</button>
+
+      {showForm && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end" }}>
+          <div style={{ background: C.card, width: "100%", borderRadius: "20px 20px 0 0", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
+              <div className="ff-display" style={{ fontSize: 17, fontWeight: 600 }}>New listing</div>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>✕</button>
+            </div>
+            {[["farmer", "Your name"], ["crop", "Crop"], ["qty", "Quantity (e.g. 100kg)"], ["price", "Price (e.g. $0.80/kg)"], ["location", "Location"]].map(([field, ph]) => (
+              <input key={field} placeholder={ph} value={form[field]}
+                onChange={e => setForm({ ...form, [field]: e.target.value })}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 13, marginBottom: 9 }} />
+            ))}
+            <button onClick={addListing} disabled={saving} style={{
+              width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 12,
+              padding: 12, fontWeight: 700, fontSize: 13.5, cursor: "pointer"
+            }}>{saving ? "Saving…" : "Publish listing"}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BotScreen() {
+  const [messages, setMessages] = useState([{ role: "bot", content: "Hi! Ask me about crops, pests, soil, or watering." }]);
+  const [input, setInput] = useState("");
+  const bottomRef = useRef(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  function send() {
+    const text = input.trim();
+    if (!text) return;
+    const answer = askFAQ(text);
+    setMessages(m => [...m, { role: "user", content: text }, { role: "bot", content: answer }]);
+    setInput("");
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
+            <div style={{
+              maxWidth: "80%", padding: "10px 13px", borderRadius: 14, fontSize: 13, lineHeight: 1.5,
+              background: m.role === "user" ? C.green : C.card,
+              color: m.role === "user" ? "#fff" : C.text,
+              border: m.role === "user" ? "none" : `1px solid ${C.border}`,
+            }}>{m.content}</div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{ margin: "0 14px 10px", background: C.skyPale, borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>Prefer to ask a person?</div>
+          <div style={{ fontSize: 10.5, color: C.textMuted }}>{agronomist.name}</div>
+        </div>
+        <a href={`tel:${agronomist.phone.replace(/\s/g, "")}`} style={{ width: 30, height: 30, borderRadius: "50%", background: C.sky, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", textDecoration: "none", fontSize: 13 }}>📞</a>
+        <a href={`mailto:${agronomist.email}`} style={{ width: 30, height: 30, borderRadius: "50%", background: C.sky, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", textDecoration: "none", fontSize: 13 }}>✉️</a>
+      </div>
+      <div style={{ display: "flex", gap: 8, padding: "10px 14px 14px", borderTop: `1px solid ${C.border}`, background: C.card }}>
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()}
+          placeholder="Ask about crops, pests, soil…"
+          style={{ flex: 1, padding: "10px 12px", borderRadius: 20, border: `1px solid ${C.border}`, fontSize: 13 }} />
+        <button onClick={send} style={{ width: 38, height: 38, borderRadius: "50%", background: C.green, border: "none", color: "#fff", cursor: "pointer" }}>➤</button>
+      </div>
+    </div>
+  );
+}
+
+function BookScreen() {
+  const [booked, setBooked] = useState(null);
+  if (booked) {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}>✅</div>
+        <div className="ff-display" style={{ fontSize: 18, fontWeight: 600, marginTop: 14 }}>Session booked</div>
+        <div style={{ fontSize: 13, color: C.textMuted, marginTop: 6 }}>{booked.name} will contact you within 24 hours.</div>
+        <button onClick={() => setBooked(null)} style={{ marginTop: 20, background: C.green, color: "#fff", border: "none", borderRadius: 12, padding: "10px 20px", fontWeight: 700, cursor: "pointer" }}>Book another</button>
+      </div>
+    );
+  }
+  return (
+    <div style={{ overflowY: "auto", flex: 1, padding: "16px 18px 24px" }}>
+      <div style={{ background: C.skyPale, borderRadius: 14, padding: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text }}>{agronomist.name}</div>
+          <div style={{ fontSize: 11, color: C.textMuted }}>Free, direct contact</div>
+        </div>
+        <a href={`tel:${agronomist.phone.replace(/\s/g, "")}`} style={{ width: 30, height: 30, borderRadius: "50%", background: C.sky, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", textDecoration: "none" }}>📞</a>
+        <a href={`mailto:${agronomist.email}`} style={{ width: 30, height: 30, borderRadius: "50%", background: C.sky, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", textDecoration: "none" }}>✉️</a>
+      </div>
+      {consultants.map(cs => (
+        <div key={cs.name} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, marginBottom: 10 }}>
+          <div className="ff-display" style={{ fontWeight: 600, fontSize: 15 }}>{cs.name}</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{cs.specialty}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{cs.rate}</span>
+            <button onClick={() => setBooked(cs)} style={{ background: C.greenPale, color: C.green, border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Book session</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProfileScreen() {
+  const [crop, setCrop] = useState("Maize");
+  return (
+    <div style={{ overflowY: "auto", flex: 1, padding: "18px" }}>
+      <div className="ff-display" style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Crop calendar</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {Object.keys(cropCalendar).map(cName => (
+          <button key={cName} onClick={() => setCrop(cName)} style={{
+            padding: "7px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            border: `1px solid ${crop === cName ? C.green : C.border}`,
+            background: crop === cName ? C.green : C.card, color: crop === cName ? "#fff" : C.textMuted,
+          }}>{cName}</button>
+        ))}
+      </div>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14 }}>
+        {cropCalendar[crop].map((s, i) => (
+          <div key={s.stage} style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", borderBottom: i < cropCalendar[crop].length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <span style={{ fontSize: 13 }}>{s.stage}</span>
+            <span style={{ fontSize: 12.5, color: C.textMuted, fontWeight: 600 }}>{s.window}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [screen, setScreen] = useState("home");
+  const titles = { home: "FarmConnect Africa", market: "Marketplace", bot: "Ask FCA", book: "Consultants", profile: "Profile" };
+  return (
+    <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column" }}>
+      <TopBar title={titles[screen]} />
+      {screen === "home" && <HomeScreen setScreen={setScreen} />}
+      {screen === "market" && <MarketScreen />}
+      {screen === "bot" && <BotScreen />}
+      {screen === "book" && <BookScreen />}
+      {screen === "profile" && <ProfileScreen />}
+      <NavBar screen={screen} setScreen={setScreen} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
