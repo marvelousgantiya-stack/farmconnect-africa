@@ -1,9 +1,0 @@
-{
-  "name": "FarmConnect Africa",
-  "short_name": "FCA",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#F3F1E7",
-  "theme_color": "#1F4D2C",
-  "icons": []
-}
